@@ -1,162 +1,62 @@
-cat > app/dashboard/page.tsx << 'EOF'
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Logo from '@/components/Logo'
-import KpiCard from '@/components/dashboard/KpiCard'
-import RevenueChart from '@/components/dashboard/RevenueChart'
-import CfChart from '@/components/dashboard/CfChart'
-import RatioChart from '@/components/dashboard/RatioChart'
-import LinkageCard from '@/components/dashboard/LinkageCard'
-import AiCommentCard from '@/components/dashboard/AiCommentCard'
-import { FinancialStatement, AiComment } from '@/lib/types'
-import { toChartData, calcDelta } from '@/lib/chartHelpers'
-import { generateAiComment } from '@/lib/analyzeClient'
-import { saveAnalysisProject } from '@/lib/supabaseOperations'
+import { AnalysisProject } from '@/lib/types'
+import { fetchProjects, deleteProject, updateProjectMemo } from '@/lib/supabaseOperations'
 
-const KPI_KEYS: { label: string; key: keyof FinancialStatement; isPercent: boolean; highlight?: boolean }[] = [
-  { label: '売上高',       key: 'revenue',         isPercent: false, highlight: true },
-  { label: '営業利益',     key: 'operatingProfit', isPercent: false },
-  { label: '経常利益',     key: 'ordinaryProfit',  isPercent: false },
-  { label: '当期純利益',   key: 'netIncome',       isPercent: false },
-  { label: '総資産',       key: 'totalAssets',     isPercent: false },
-  { label: '純資産',       key: 'netAssets',       isPercent: false },
-  { label: '自己資本比率', key: 'equityRatio',     isPercent: true },
-  { label: '営業CF',       key: 'operatingCF',     isPercent: false },
-  { label: '投資CF',       key: 'investingCF',     isPercent: false },
-  { label: '財務CF',       key: 'financingCF',     isPercent: false },
-  { label: 'フリーCF',     key: 'freeCF',          isPercent: false },
-  { label: 'ROE',          key: 'roe',             isPercent: true },
-  { label: 'ROA',          key: 'roa',             isPercent: true },
-  { label: '営業利益率',   key: 'operatingMargin', isPercent: true },
-]
-
-export default function DashboardPage() {
+export default function HistoryPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const [statements, setStatements] = useState<FinancialStatement[]>([])
-  const [companyName, setCompanyName] = useState('')
-  const [unit, setUnit] = useState<FinancialStatement['unit']>('百万円')
-  const [aiComment, setAiComment] = useState<AiComment | null>(null)
-  const [generatingComment, setGeneratingComment] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [memo, setMemo] = useState('')
-  const [showMemo, setShowMemo] = useState(false)
+  const [projects, setProjects] = useState<AnalysisProject[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [editingMemo, setEditingMemo] = useState<string | null>(null)
+  const [memoValue, setMemoValue] = useState('')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
-  useEffect(() => {
-    const projectId = searchParams.get('project')
-    if (projectId) {
-      fetchFromSupabase(projectId)
-    } else {
-      const stmtsJson = sessionStorage.getItem('confirmedStatements')
-      const name = sessionStorage.getItem('confirmedCompanyName') ?? ''
-      const u = (sessionStorage.getItem('confirmedUnit') ?? '百万円') as FinancialStatement['unit']
-      if (!stmtsJson) { router.push('/'); return }
-      setStatements(JSON.parse(stmtsJson))
-      setCompanyName(name)
-      setUnit(u)
-    }
-  }, [router, searchParams])
-
-  useEffect(() => {
-    if (statements.length === 0 || aiComment) return
-    handleGenerateComment()
-  }, [statements])
-
-  async function fetchFromSupabase(projectId: string) {
+  const loadProjects = useCallback(async () => {
+    setLoading(true)
+    setError(null)
     try {
-      const { fetchProjectWithComment } = await import('@/lib/supabaseOperations')
-      const data = await fetchProjectWithComment(projectId)
-      const stmts: FinancialStatement[] = data.financial_statements
-        .sort((a: { fiscal_year: number }, b: { fiscal_year: number }) => a.fiscal_year - b.fiscal_year)
-        .map((s: Record<string, unknown>) => ({
-          fiscalYear: s.fiscal_year as number,
-          revenue: s.revenue as number | null,
-          operatingProfit: s.operating_profit as number | null,
-          ordinaryProfit: s.ordinary_profit as number | null,
-          netIncome: s.net_income as number | null,
-          totalAssets: s.total_assets as number | null,
-          totalLiabilities: s.total_liabilities as number | null,
-          netAssets: s.net_assets as number | null,
-          equityRatio: s.equity_ratio as number | null,
-          operatingCF: s.operating_cf as number | null,
-          investingCF: s.investing_cf as number | null,
-          financingCF: s.financing_cf as number | null,
-          freeCF: s.free_cf as number | null,
-          roe: s.roe as number | null,
-          roa: s.roa as number | null,
-          operatingMargin: s.operating_margin as number | null,
-          unit: (s.unit ?? '百万円') as FinancialStatement['unit'],
-          statementType: (s.statement_type ?? '連結') as FinancialStatement['statementType'],
-          sourceFileName: s.source_file_name as string | undefined,
-        }))
-      setStatements(stmts)
-      setCompanyName(data.company_name)
-      setUnit(stmts[0]?.unit ?? '百万円')
-      setMemo(data.memo ?? '')
-      setSaved(true)
-      const comment = data.ai_comments?.[0]
-      if (comment) {
-        setAiComment({
-          summary: comment.summary,
-          growthComment: comment.growth_comment,
-          profitabilityComment: comment.profitability_comment,
-          safetyComment: comment.safety_comment,
-          cashflowComment: comment.cashflow_comment,
-          investmentComment: comment.investment_comment,
-          riskComment: comment.risk_comment,
-        })
-      }
+      const data = await fetchProjects()
+      setProjects(data)
     } catch (err) {
       setError('データの読み込みに失敗しました: ' + String(err))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadProjects() }, [loadProjects])
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('この分析結果を削除しますか？元に戻せません。')) return
+    setDeletingId(id)
+    try {
+      await deleteProject(id)
+      setProjects(prev => prev.filter(p => p.id !== id))
+    } catch (err) {
+      setError('削除に失敗しました: ' + String(err))
+    } finally {
+      setDeletingId(null)
     }
   }
 
-  const handleGenerateComment = useCallback(async () => {
-    if (statements.length === 0) return
-    setGeneratingComment(true)
+  const handleMemoSave = async (id: string) => {
     try {
-      const comment = await generateAiComment(statements, companyName)
-      setAiComment(comment)
+      await updateProjectMemo(id, memoValue)
+      setProjects(prev => prev.map(p => p.id === id ? { ...p, memo: memoValue } : p))
+      setEditingMemo(null)
     } catch (err) {
-      console.warn('AIコメント生成失敗:', err)
-    } finally {
-      setGeneratingComment(false)
+      setError('メモ保存に失敗しました: ' + String(err))
     }
-  }, [statements, companyName])
-
-  const handleSave = useCallback(async () => {
-    if (saving || saved) return
-    setSaving(true)
-    try {
-      const uploadedFiles = JSON.parse(sessionStorage.getItem('uploadedFiles') ?? '[]')
-      await saveAnalysisProject({ companyName, statements, aiComment, uploadedFiles, memo })
-      setSaved(true)
-    } catch (err) {
-      setError('保存に失敗しました: ' + String(err))
-    } finally {
-      setSaving(false)
-    }
-  }, [companyName, statements, aiComment, memo, saving, saved])
-
-  if (statements.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center text-gray-500">
-          <div className="text-4xl mb-3 animate-pulse">📊</div>
-          <p className="text-sm">データを読み込んでいます...</p>
-        </div>
-      </div>
-    )
   }
 
-  const sorted = [...statements].sort((a, b) => a.fiscalYear - b.fiscalYear)
-  const latest = sorted[sorted.length - 1]
-  const previous = sorted.length >= 2 ? sorted[sorted.length - 2] : null
-  const chartData = toChartData(sorted)
+  const filtered = projects.filter(p =>
+    p.companyName.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,117 +64,107 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <Logo size={28} />
           <div>
-            <h1 className="text-sm font-medium text-blue-100">{companyName || '企業名未設定'}</h1>
-            <p className="text-xs text-blue-500">{sorted[0]?.fiscalYear}〜{latest.fiscalYear}年 | {latest.statementType} | {unit}</p>
+            <h1 className="text-sm font-medium text-blue-100">過去の分析結果</h1>
+            <p className="text-xs text-blue-500">合同会社リベルダード</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowMemo(v => !v)} className="text-xs text-blue-300 border border-blue-700 rounded-lg px-3 py-1.5 hover:bg-blue-900 transition-colors">メモ</button>
-          <button onClick={handleSave} disabled={saving || saved} className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${saved ? 'text-emerald-400 border border-emerald-700' : 'text-white bg-blue-600 hover:bg-blue-700'}`}>
-            {saving ? '保存中...' : saved ? '✓ 保存済み' : '保存する'}
-          </button>
-          <button onClick={() => router.push('/history')} className="text-xs text-blue-300 border border-blue-700 rounded-lg px-3 py-1.5 hover:bg-blue-900 transition-colors">履歴</button>
-        </div>
+        <button onClick={() => router.push('/')} className="text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 transition-colors">
+          + 新規分析
+        </button>
       </header>
 
-      {showMemo && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-3">
-          <textarea value={memo} onChange={e => setMemo(e.target.value)} placeholder="この分析についてのメモを記入..." rows={2} className="w-full text-sm border border-amber-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-amber-500 resize-none" />
-        </div>
-      )}
-
-      {error && <div className="mx-4 mt-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
-
-      <div className="mx-4 sm:mx-6 mt-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-xs text-amber-800 flex items-start gap-2">
-        <span>⚠</span>
-        <span>AI抽出結果です。原資料と照合の上ご利用ください。投資判断にはご利用いただけません。</span>
-      </div>
-
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-4 space-y-5">
-        <section>
-          <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">直近期 KPI（{latest.fiscalYear}年）</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-            {KPI_KEYS.map((kpi, i) => {
-              const val = latest[kpi.key] as number | null
-              const prevVal = previous ? (previous[kpi.key] as number | null) : null
-              const delta = calcDelta(val, prevVal)
-              return (
-                <KpiCard key={i} label={kpi.label} value={val} unit={unit}
-                  isPercent={kpi.isPercent} deltaValue={delta.value}
-                  deltaSign={delta.sign} highlight={kpi.highlight} />
-              )
-            })}
-          </div>
-        </section>
-
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">売上高・営業利益・純利益 推移</h3>
-            <RevenueChart data={chartData} unit={unit} />
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">キャッシュフロー推移</h3>
-            <CfChart data={chartData} unit={unit} />
-          </div>
-        </section>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">ROE / ROA / 営業利益率 / 自己資本比率 推移</h3>
-          <RatioChart data={chartData} />
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-5 space-y-4">
+        <div className="relative">
+          <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="企業名で検索..." className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm pl-9 focus:outline-none focus:border-blue-400 bg-white" />
+          <span className="absolute left-3 top-3 text-gray-400 text-sm">🔍</span>
         </div>
 
-        <section className="bg-white border border-gray-200 rounded-xl p-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-4">財務三表のつながり（{latest.fiscalYear}年）</h3>
-          <LinkageCard latest={latest} previous={previous} />
-        </section>
+        {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
 
-        <section className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-700">AIコメント（学習補助）</h3>
-            <button onClick={handleGenerateComment} disabled={generatingComment} className="text-xs text-blue-600 border border-blue-300 rounded-lg px-3 py-1 hover:bg-blue-50 transition-colors disabled:opacity-40">
-              {generatingComment ? '生成中...' : '再生成'}
-            </button>
+        {loading && (
+          <div className="text-center py-12 text-gray-400">
+            <div className="text-3xl mb-3 animate-pulse">📂</div>
+            <p className="text-sm">読み込み中...</p>
           </div>
-          <AiCommentCard
-            comment={aiComment ?? { summary: '', growthComment: '', profitabilityComment: '', safetyComment: '', cashflowComment: '', investmentComment: '', riskComment: '' }}
-            generating={generatingComment || !aiComment}
-          />
-        </section>
+        )}
 
-        <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-700">財務データ一覧</h3>
-            <span className="text-xs text-gray-400">{unit}単位</span>
+        {!loading && filtered.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-3">📭</div>
+            <p className="text-sm text-gray-500 mb-4">{searchQuery ? '検索結果がありません' : 'まだ保存された分析結果がありません'}</p>
+            <button onClick={() => router.push('/')} className="text-sm text-blue-600 border border-blue-300 rounded-xl px-4 py-2 hover:bg-blue-50 transition-colors">最初の分析を始める</button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-left px-3 py-2 text-gray-500 font-medium sticky left-0 bg-gray-50">項目</th>
-                  {sorted.map(s => <th key={s.fiscalYear} className="text-right px-3 py-2 text-gray-500 font-medium whitespace-nowrap">{s.fiscalYear}年</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {KPI_KEYS.map((kpi, i) => (
-                  <tr key={kpi.key} className={`border-b border-gray-50 ${i % 2 === 0 ? '' : 'bg-gray-50/50'}`}>
-                    <td className="px-3 py-2 text-gray-600 sticky left-0 bg-inherit font-medium whitespace-nowrap">{kpi.label}</td>
-                    {sorted.map(s => {
-                      const v = s[kpi.key] as number | null
-                      return (
-                        <td key={s.fiscalYear} className={`px-3 py-2 text-right tabular-nums ${v === null ? 'text-gray-300' : v < 0 ? 'text-red-600' : 'text-gray-800'}`}>
-                          {v === null ? '—' : kpi.isPercent ? `${v.toFixed(1)}%` : v.toLocaleString()}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-        <div className="h-8" />
+        )}
+
+        {filtered.map(project => {
+          const years = project.fiscalYearEnd - project.fiscalYearStart + 1
+          const isEditing = editingMemo === project.id
+          const isDeleting = deletingId === project.id
+          const latest = project.statements[project.statements.length - 1]
+          const u = (latest as { unit?: string })?.unit ?? '百万円'
+          const fmt = (v: number | null | undefined) => {
+            if (v === null || v === undefined) return '—'
+            const num = Number(v)
+            if (isNaN(num)) return '—'
+            return Math.abs(num) >= 10000 ? (num / 10000).toFixed(0) + '億' + u : num.toLocaleString() + u
+          }
+
+          return (
+            <div key={project.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-base font-medium text-gray-900 truncate">{project.companyName}</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">{project.fiscalYearStart}〜{project.fiscalYearEnd}年（{years}年分）· 保存日：{new Date(project.createdAt).toLocaleDateString('ja-JP')}</p>
+                  </div>
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex-shrink-0">{years}年分</span>
+                </div>
+
+                {latest && (
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {[
+                      { label: '売上高', value: fmt((latest as Record<string, unknown>).revenue as number | null) },
+                      { label: '営業利益', value: fmt((latest as Record<string, unknown>).operatingProfit as number | null) },
+                      { label: '純利益', value: fmt((latest as Record<string, unknown>).netIncome as number | null) },
+                    ].map((item, i) => (
+                      <div key={i} className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-xs text-gray-400 mb-0.5">{item.label}</p>
+                        <p className="text-sm font-medium text-gray-800">{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {isEditing ? (
+                  <div className="mt-3">
+                    <textarea value={memoValue} onChange={e => setMemoValue(e.target.value)} rows={2} placeholder="メモを入力..." className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400 resize-none" autoFocus />
+                    <div className="flex gap-2 mt-1.5">
+                      <button onClick={() => handleMemoSave(project.id)} className="text-xs bg-blue-600 text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors">保存</button>
+                      <button onClick={() => setEditingMemo(null)} className="text-xs border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">キャンセル</button>
+                    </div>
+                  </div>
+                ) : project.memo ? (
+                  <div className="mt-3 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                    <p className="text-xs text-amber-800 leading-relaxed">{project.memo}</p>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="border-t border-gray-100 px-4 py-2 flex gap-2 bg-gray-50">
+                <button onClick={() => router.push('/dashboard?project=' + project.id)} className="flex-1 text-xs bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition-colors font-medium">再表示 →</button>
+                <button onClick={() => { setEditingMemo(project.id); setMemoValue(project.memo ?? '') }} className="text-xs border border-gray-300 rounded-lg px-3 py-2 hover:bg-gray-100 transition-colors">メモ</button>
+                <button onClick={() => handleDelete(project.id)} disabled={isDeleting} className="text-xs text-red-500 border border-red-200 rounded-lg px-3 py-2 hover:bg-red-50 transition-colors disabled:opacity-40">
+                  {isDeleting ? '削除中...' : '削除'}
+                </button>
+              </div>
+            </div>
+          )
+        })}
+
+        <div className="text-xs text-center text-gray-400 py-4">
+          {!loading && projects.length + '件の分析結果'}
+        </div>
       </main>
     </div>
   )
 }
-EOF
