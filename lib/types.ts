@@ -1,20 +1,6 @@
 export interface FinancialStatement {
   fiscalYear: number
-  revenue: number | null
-  operatingProfit: number | null
-  ordinaryProfit: number | null
-  netIncome: number | null
-  totalAssets: number | null
-  totalLiabilities: number | null
-  netAssets: number | null
-  equityRatio: number | null
-  operatingCF: number | null
-  investingCF: number | null
-  financingCF: number | null
-  freeCF: number | null
-  roe: number | null
-  roa: number | null
-  operatingMargin: number | null
+  [key: string]: number | null | string | undefined
   unit: '百万円' | '千円' | '円'
   statementType: '連結' | '個別'
   sourceFileName?: string
@@ -23,14 +9,12 @@ export interface FinancialStatement {
 export interface ExtractedData {
   companyName: string
   fiscalYear: number
-  statements: Omit<FinancialStatement, 'fiscalYear' | 'unit' | 'statementType' | 'sourceFileName'>
-  confidence: {
-    revenue: 'high' | 'medium' | 'low'
-    operatingProfit: 'high' | 'medium' | 'low'
-    netIncome: 'high' | 'medium' | 'low'
-  }
+  statements: Record<string, number | null>
+  confidence: Record<string, 'high' | 'medium' | 'low'>
   warnings: string[]
   rawText?: string
+  unit?: string
+  statementType?: string
 }
 
 export interface AnalysisProject {

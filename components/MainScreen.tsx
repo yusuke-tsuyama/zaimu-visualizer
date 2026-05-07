@@ -7,8 +7,10 @@ import UploadArea from './UploadArea'
 import FileList from './FileList'
 import AnalyzingOverlay from './AnalyzingOverlay'
 import TutorialScreen from './TutorialScreen'
+import AccountItemEditor from './AccountItemEditor'
 import { UploadedFile, ExtractedData } from '@/lib/types'
 import { extractAndAnalyzePdf } from '@/lib/analyzeClient'
+import { DEFAULT_ACCOUNT_ITEMS, AccountItem } from '@/lib/accountItems'
 
 function emptyStatements() {
   return {
@@ -26,6 +28,8 @@ export default function MainScreen() {
   const [analyzeStep, setAnalyzeStep] = useState<'reading' | 'extracting' | 'analyzing' | 'rendering' | null>(null)
   const [progress, setProgress] = useState(0)
   const [showTutorial, setShowTutorial] = useState(false)
+  const [showAccountEditor, setShowAccountEditor] = useState(false)
+  const [accountItems, setAccountItems] = useState<AccountItem[]>(DEFAULT_ACCOUNT_ITEMS)
   const [error, setError] = useState<string | null>(null)
 
   const handleYearChange = (index: number, year: number) => {
@@ -42,6 +46,7 @@ export default function MainScreen() {
     if (missingYear) { setError('すべてのファイルに年度を設定してください'); return }
     setError(null)
     const extractedResults: ExtractedData[] = []
+
     for (let i = 0; i < files.length; i++) {
       const uf = files[i]
       setAnalyzeStep('reading')
@@ -50,7 +55,7 @@ export default function MainScreen() {
       try {
         setAnalyzeStep('extracting')
         setProgress(Math.round((i / files.length) * 100 + 20))
-        const result = await extractAndAnalyzePdf(uf.file, uf.fiscalYear!)
+        const result = await extractAndAnalyzePdf(uf.file, uf.fiscalYear!, accountItems)
         setAnalyzeStep('analyzing')
         setProgress(Math.round((i / files.length) * 100 + 60))
         extractedResults.push(result)
@@ -60,24 +65,26 @@ export default function MainScreen() {
           companyName: '', fiscalYear: uf.fiscalYear!,
           statements: emptyStatements(),
           confidence: { revenue: 'low', operatingProfit: 'low', netIncome: 'low' },
-          warnings: [`${uf.file.name}: ${String(err)}`],
+          warnings: [String(err)],
           rawText: '',
         }
         extractedResults.push(errorResult)
         setFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'error', errorMessage: String(err) } : f))
       }
     }
+
     setAnalyzeStep('rendering')
     setProgress(95)
     sessionStorage.setItem('extractedResults', JSON.stringify(extractedResults))
     sessionStorage.setItem('uploadedFiles', JSON.stringify(
       files.map(f => ({ name: f.file.name, fiscalYear: f.fiscalYear }))
     ))
+    sessionStorage.setItem('accountItems', JSON.stringify(accountItems))
     await new Promise(r => setTimeout(r, 500))
     setProgress(100)
     setAnalyzeStep(null)
     router.push('/review')
-  }, [files, router])
+  }, [files, router, accountItems])
 
   return (
     <>
@@ -108,8 +115,28 @@ export default function MainScreen() {
             <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">決算書PDFをアップロード</h2>
             <UploadArea files={files} onFilesChange={setFiles} maxFiles={10} />
           </div>
-          {files.length > 0 && <FileList files={files} onYearChange={handleYearChange} onRemove={handleRemove} />}
-          {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
+          {files.length > 0 && (
+            <FileList files={files} onYearChange={handleYearChange} onRemove={handleRemove} />
+          )}
+
+          <div>
+            <button
+              onClick={() => setShowAccountEditor(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <span>📋 抽出する科目を設定（{accountItems.length}科目）</span>
+              <span className="text-gray-400">{showAccountEditor ? '▲' : '▼'}</span>
+            </button>
+            {showAccountEditor && (
+              <div className="mt-2">
+                <AccountItemEditor items={accountItems} onChange={setAccountItems} />
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>
+          )}
           <button
             onClick={handleAnalyze}
             disabled={!!analyzeStep || files.length === 0}

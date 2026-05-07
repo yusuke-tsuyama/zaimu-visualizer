@@ -5,22 +5,13 @@ import { useRouter } from 'next/navigation'
 import Logo from '@/components/Logo'
 import ReviewTable from '@/components/ReviewTable'
 import { ExtractedData, FinancialStatement } from '@/lib/types'
-
-function emptyStatements() {
-  return {
-    revenue: null, operatingProfit: null, ordinaryProfit: null,
-    netIncome: null, totalAssets: null, totalLiabilities: null,
-    netAssets: null, equityRatio: null, operatingCF: null,
-    investingCF: null, financingCF: null, freeCF: null,
-    roe: null, roa: null, operatingMargin: null,
-  }
-}
+import { AccountItem, DEFAULT_ACCOUNT_ITEMS } from '@/lib/accountItems'
 
 type ReviewEntry = {
   uploadedFile: { name: string; fiscalYear: number }
   extractedData: ExtractedData
-  unit: FinancialStatement['unit']
-  statementType: FinancialStatement['statementType']
+  unit: string
+  statementType: string
   analyzing: boolean
   error: string | null
 }
@@ -31,6 +22,7 @@ export default function ReviewPage() {
   const [activeIndex, setActiveIndex] = useState(0)
   const [saving, setSaving] = useState(false)
   const [globalCompanyName, setGlobalCompanyName] = useState('')
+  const [accountItems, setAccountItems] = useState<AccountItem[]>(DEFAULT_ACCOUNT_ITEMS)
 
   useEffect(() => {
     const filesJson = sessionStorage.getItem('uploadedFiles')
@@ -38,22 +30,21 @@ export default function ReviewPage() {
     const uploadedFiles: { name: string; fiscalYear: number }[] = JSON.parse(filesJson)
     const resultsJson = sessionStorage.getItem('extractedResults')
     const results: ExtractedData[] = resultsJson ? JSON.parse(resultsJson) : []
+    const itemsJson = sessionStorage.getItem('accountItems')
+    if (itemsJson) setAccountItems(JSON.parse(itemsJson))
 
     const initial: ReviewEntry[] = uploadedFiles.map((f, i) => ({
       uploadedFile: f,
       extractedData: results[i] ?? {
         companyName: '', fiscalYear: f.fiscalYear,
-        statements: emptyStatements(),
-        confidence: { revenue: 'low', operatingProfit: 'low', netIncome: 'low' },
-        warnings: [], rawText: '',
+        statements: {}, confidence: {}, warnings: [], rawText: '',
       },
-      unit: '百万円',
-      statementType: '連結',
+      unit: results[i]?.unit ?? '百万円',
+      statementType: results[i]?.statementType ?? '連結',
       analyzing: false,
       error: null,
     }))
     setEntries(initial)
-
     const firstName = results[0]?.companyName
     if (firstName) setGlobalCompanyName(firstName)
   }, [router])
@@ -68,16 +59,17 @@ export default function ReviewPage() {
     const statements: FinancialStatement[] = entries.map(entry => ({
       fiscalYear: entry.extractedData.fiscalYear,
       ...entry.extractedData.statements,
-      unit: entry.unit,
-      statementType: entry.statementType,
+      unit: entry.unit as '百万円' | '千円' | '円',
+      statementType: entry.statementType as '連結' | '個別',
       sourceFileName: entry.uploadedFile.name,
     }))
     sessionStorage.setItem('confirmedStatements', JSON.stringify(statements))
     sessionStorage.setItem('confirmedCompanyName', companyName)
     sessionStorage.setItem('confirmedUnit', entries[0]?.unit ?? '百万円')
+    sessionStorage.setItem('accountItems', JSON.stringify(accountItems))
     setSaving(false)
     router.push('/dashboard')
-  }, [entries, globalCompanyName, router])
+  }, [entries, globalCompanyName, router, accountItems])
 
   const current = entries[activeIndex]
 
@@ -140,6 +132,7 @@ export default function ReviewPage() {
         {current && (
           <ReviewTable
             data={current.extractedData}
+            accountItems={accountItems}
             unit={current.unit}
             statementType={current.statementType}
             onDataChange={updated => updateEntry(activeIndex, { extractedData: updated })}

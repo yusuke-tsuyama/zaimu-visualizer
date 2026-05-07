@@ -1,4 +1,3 @@
-cat > app/api/analyze/route.ts << 'EOF'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -11,17 +10,16 @@ const client = new Anthropic({
 
 const SYSTEM_PROMPT = `あなたは財務諸表の読解を専門とするアシスタントです。
 与えられた決算書テキストから財務数値を正確に抽出し、必ず指定のJSON形式のみで返してください。
-JSON以外の文字（説明文・コメント・マークダウン記法）は一切含めないでください。
+JSON以外の文字は一切含めないでください。
 
 抽出ルール：
-- 連結財務諸表を優先し、なければ個別（単体）を使用する
+- 連結財務諸表を優先し、なければ個別を使用する
 - 数値は単位変換せず、テキストに記載された数値をそのまま抽出する
 - 取得できない項目は必ず null にする。推測で埋めない
 - △や▲はマイナスを意味するため、負の値として返す
-- 自己資本比率・ROE・ROA・営業利益率はパーセント値（例: 35.4）で返す
-- フリーCFが明示されていない場合は「営業CF + 投資CF」で計算してよい
-- 単位は百万円・千円・円のいずれかを判定して返す
-- 会計年度は「第XX期」「XXXX年X月期」等から判断する`
+- 自己資本比率・ROE・ROA・営業利益率はパーセント値で返す
+- フリーCFが明示されていない場合は営業CF+投資CFで計算してよい
+- 単位は百万円・千円・円のいずれかを判定して返す`
 
 export async function POST(req: NextRequest) {
   try {
@@ -78,11 +76,7 @@ export async function POST(req: NextRequest) {
   "confidence": {
     "revenue": "high",
     "operatingProfit": "high",
-    "ordinaryProfit": "medium",
-    "netIncome": "high",
-    "totalAssets": "high",
-    "netAssets": "high",
-    "operatingCF": "medium"
+    "netIncome": "high"
   },
   "warnings": []
 }
@@ -126,4 +120,3 @@ ${extractedText.slice(0, 40000)}`,
     )
   }
 }
-EOF
