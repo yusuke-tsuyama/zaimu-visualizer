@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import type { DocumentBlockParam, TextBlockParam } from '@anthropic-ai/sdk/resources/messages'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -73,31 +74,28 @@ ${statementsTemplate}
     let message
 
     if (base64Pdf) {
-      // PDFを直接Claudeに渡して解析
+      const docBlock: DocumentBlockParam = {
+        type: 'document',
+        source: {
+          type: 'base64',
+          media_type: 'application/pdf',
+          data: base64Pdf,
+        },
+      }
+      const textBlock: TextBlockParam = {
+        type: 'text',
+        text: userPrompt,
+      }
       message = await client.messages.create({
         model: 'claude-opus-4-5',
         max_tokens: 2000,
         system: SYSTEM_PROMPT,
         messages: [{
           role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: {
-                type: 'base64',
-                media_type: 'application/pdf',
-                data: base64Pdf,
-              },
-            } as {type: string; source: {type: string; media_type: string; data: string}},
-            {
-              type: 'text',
-              text: userPrompt,
-            },
-          ],
+          content: [docBlock, textBlock],
         }],
       })
     } else {
-      // テキストベースの解析
       message = await client.messages.create({
         model: 'claude-opus-4-5',
         max_tokens: 2000,
