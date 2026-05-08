@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const { extractedText, fileName, fiscalYear, unit, statementType, accountItems } = body
 
     if (!extractedText || extractedText.trim().length < 100) {
-      return NextResponse.json({ error: 'テキストが短すぎます。' }, { status: 400 })
+      console.warn("テキストが短いですが続行します")
     }
 
     const hint = [
