@@ -71,27 +71,36 @@ export default function DashboardContent() {
       const data = await fetchProjectWithComment(projectId)
       const stmts: FinancialStatement[] = (data.financial_statements ?? [])
         .sort((a: Record<string,unknown>, b: Record<string,unknown>) => (a.fiscal_year as number) - (b.fiscal_year as number))
-        .map((s: Record<string, unknown>) => ({
-          fiscalYear: s.fiscal_year as number,
-          ...s,
-          unit: (s.unit ?? '百万円') as FinancialStatement['unit'],
-          statementType: (s.statement_type ?? '連結') as FinancialStatement['statementType'],
-        }))
+        .map((s: Record<string, unknown>) => {
+          const stmt: FinancialStatement = {
+            fiscalYear: s.fiscal_year as number,
+            unit: (s.unit ?? '万円') as FinancialStatement['unit'],
+            statementType: (s.statement_type ?? '連結') as FinancialStatement['statementType'],
+            sourceFileName: s.source_file_name as string | undefined,
+          }
+          // 全ての数値フィールドを動的に追加
+          Object.keys(s).forEach(key => {
+            if (!['id','project_id','fiscal_year','unit','statement_type','source_file_name','created_at'].includes(key)) {
+              (stmt as Record<string,unknown>)[key] = s[key]
+            }
+          })
+          return stmt
+        })
       setStatements(stmts)
       setCompanyName(data.company_name)
-      setUnit((stmts[0] as Record<string,unknown>)?.unit as string ?? '百万円')
+      setUnit((stmts[0] as Record<string,unknown>)?.unit as string ?? '万円')
       setMemo(data.memo ?? '')
       setSaved(true)
-      const comment = data.ai_comments?.[0]
+      const comment = (data.ai_comments ?? [])[0]
       if (comment) {
         setAiComment({
-          summary: comment.summary,
-          growthComment: comment.growth_comment,
-          profitabilityComment: comment.profitability_comment,
-          safetyComment: comment.safety_comment,
-          cashflowComment: comment.cashflow_comment,
-          investmentComment: comment.investment_comment,
-          riskComment: comment.risk_comment,
+          summary: comment.summary ?? '',
+          growthComment: comment.growth_comment ?? '',
+          profitabilityComment: comment.profitability_comment ?? '',
+          safetyComment: comment.safety_comment ?? '',
+          cashflowComment: comment.cashflow_comment ?? '',
+          investmentComment: comment.investment_comment ?? '',
+          riskComment: comment.risk_comment ?? '',
         })
       }
     } catch (err) {
