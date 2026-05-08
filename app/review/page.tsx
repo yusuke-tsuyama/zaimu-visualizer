@@ -12,8 +12,6 @@ type ReviewEntry = {
   extractedData: ExtractedData
   unit: string
   statementType: string
-  analyzing: boolean
-  error: string | null
 }
 
 export default function ReviewPage() {
@@ -33,6 +31,11 @@ export default function ReviewPage() {
     const itemsJson = sessionStorage.getItem('accountItems')
     if (itemsJson) setAccountItems(JSON.parse(itemsJson))
 
+    // 企業名の優先順位：1.メイン画面入力 2.PDF抽出 3.空
+    const uploadedName = sessionStorage.getItem('uploadedCompanyName') ?? ''
+    const pdfName = results[0]?.companyName ?? ''
+    setGlobalCompanyName(uploadedName || pdfName)
+
     const initial: ReviewEntry[] = uploadedFiles.map((f, i) => ({
       uploadedFile: f,
       extractedData: results[i] ?? {
@@ -41,13 +44,8 @@ export default function ReviewPage() {
       },
       unit: results[i]?.unit ?? '百万円',
       statementType: results[i]?.statementType ?? '連結',
-      analyzing: false,
-      error: null,
     }))
     setEntries(initial)
-    const uploadedName = sessionStorage.getItem('uploadedCompanyName')
-    const firstName = uploadedName || results[0]?.companyName
-    if (firstName) setGlobalCompanyName(firstName)
   }, [router])
 
   const updateEntry = (index: number, updated: Partial<ReviewEntry>) => {
@@ -92,7 +90,7 @@ export default function ReviewPage() {
           <Logo size={28} />
           <div>
             <h1 className="text-sm font-medium text-blue-100">抽出結果の確認・修正</h1>
-            <p className="text-xs text-blue-500">原資料と照合し、誤りを修正してください</p>
+            <p className="text-xs text-blue-500">{globalCompanyName || '企業名未設定'}</p>
           </div>
         </div>
         <button
@@ -105,16 +103,6 @@ export default function ReviewPage() {
       </header>
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <label className="text-xs text-gray-500 block mb-1">企業名（全年度共通）</label>
-          <input
-            type="text"
-            value={globalCompanyName}
-            onChange={e => setGlobalCompanyName(e.target.value)}
-            placeholder="例：株式会社ABCDE"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-          />
-        </div>
 
         {entries.length > 1 && (
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -122,7 +110,7 @@ export default function ReviewPage() {
               <button
                 key={i}
                 onClick={() => setActiveIndex(i)}
-                className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ${i === activeIndex ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                className={'flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ' + (i === activeIndex ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50')}
               >
                 {entry.extractedData.fiscalYear}年
               </button>
@@ -132,7 +120,7 @@ export default function ReviewPage() {
 
         {current && (
           <ReviewTable
-            data={current.extractedData}
+            data={{ ...current.extractedData, companyName: globalCompanyName }}
             accountItems={accountItems}
             unit={current.unit}
             statementType={current.statementType}

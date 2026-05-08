@@ -25,6 +25,7 @@ function emptyStatements() {
 export default function MainScreen() {
   const router = useRouter()
   const [files, setFiles] = useState<UploadedFile[]>([])
+  const [companyName, setCompanyName] = useState('')
   const [analyzeStep, setAnalyzeStep] = useState<'reading' | 'extracting' | 'analyzing' | 'rendering' | null>(null)
   const [progress, setProgress] = useState(0)
   const [showTutorial, setShowTutorial] = useState(false)
@@ -62,9 +63,9 @@ export default function MainScreen() {
         setFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'done', extractedData: result } : f))
       } catch (err) {
         const errorResult: ExtractedData = {
-          companyName: '', fiscalYear: uf.fiscalYear!,
+          companyName: companyName, fiscalYear: uf.fiscalYear!,
           statements: emptyStatements(),
-          confidence: { revenue: 'low', operatingProfit: 'low', netIncome: 'low' },
+          confidence: {},
           warnings: [String(err)],
           rawText: '',
         }
@@ -80,11 +81,12 @@ export default function MainScreen() {
       files.map(f => ({ name: f.file.name, fiscalYear: f.fiscalYear }))
     ))
     sessionStorage.setItem('accountItems', JSON.stringify(accountItems))
+    sessionStorage.setItem('uploadedCompanyName', companyName)
     await new Promise(r => setTimeout(r, 500))
     setProgress(100)
     setAnalyzeStep(null)
     router.push('/review')
-  }, [files, router, accountItems])
+  }, [files, router, accountItems, companyName])
 
   return (
     <>
@@ -110,15 +112,34 @@ export default function MainScreen() {
             <button onClick={() => router.push('/history')} className="text-xs text-blue-300 border border-blue-700 rounded-lg px-3 py-1.5 hover:bg-blue-900 transition-colors">過去の分析</button>
           </div>
         </header>
+
         <main className="max-w-2xl mx-auto px-4 py-8 space-y-4">
+
+          {/* 企業名入力（1ページ目・最上部） */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <label className="text-xs font-medium text-gray-600 block mb-1">企業名（任意）</label>
+            <input
+              type="text"
+              value={companyName}
+              onChange={e => setCompanyName(e.target.value)}
+              placeholder="例：株式会社ABCDE"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+            />
+            <p className="text-xs text-gray-400 mt-1">PDFから自動取得されますが、事前に入力することもできます</p>
+          </div>
+
+          {/* PDFアップロード */}
           <div>
             <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">決算書PDFをアップロード</h2>
             <UploadArea files={files} onFilesChange={setFiles} maxFiles={10} />
           </div>
+
+          {/* ファイル一覧（年度入力） */}
           {files.length > 0 && (
             <FileList files={files} onYearChange={handleYearChange} onRemove={handleRemove} />
           )}
 
+          {/* 科目設定 */}
           <div>
             <button
               onClick={() => setShowAccountEditor(v => !v)}
@@ -137,10 +158,11 @@ export default function MainScreen() {
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>
           )}
+
           <button
             onClick={handleAnalyze}
             disabled={!!analyzeStep || files.length === 0}
-            className={`w-full py-4 rounded-xl font-medium text-base transition-all ${files.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+            className={'w-full py-4 rounded-xl font-medium text-base transition-all ' + (files.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white')}
           >
             財務三表を分析する
           </button>

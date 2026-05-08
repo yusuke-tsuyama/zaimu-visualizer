@@ -27,7 +27,7 @@ export async function extractAndAnalyzePdf(
     body: JSON.stringify({
       extractedText: extracted.extractedText ?? '',
       base64Pdf: extracted.base64Pdf,
-      usePdfVision: extracted.usePdfVision ?? false,
+      usePdfVision: true,
       fileName: file.name,
       fiscalYear,
       unit: extracted.unit,
