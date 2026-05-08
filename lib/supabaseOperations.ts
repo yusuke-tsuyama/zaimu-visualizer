@@ -1,4 +1,3 @@
-cat > lib/supabaseOperations.ts << 'EOF'
 import { createClient } from './supabase'
 import { FinancialStatement, AiComment, AnalysisProject } from './types'
 
@@ -24,18 +23,20 @@ export async function saveAnalysisProject({
   if (projErr) throw new Error(projErr.message)
 
   const projectId = project.id
-  const stmtRows = statements.map(s => ({
-    project_id: projectId, fiscal_year: s.fiscalYear,
-    revenue: s.revenue, operating_profit: s.operatingProfit,
-    ordinary_profit: s.ordinaryProfit, net_income: s.netIncome,
-    total_assets: s.totalAssets, total_liabilities: s.totalLiabilities,
-    net_assets: s.netAssets, equity_ratio: s.equityRatio,
-    operating_cf: s.operatingCF, investing_cf: s.investingCF,
-    financing_cf: s.financingCF, free_cf: s.freeCF,
-    roe: s.roe, roa: s.roa, operating_margin: s.operatingMargin,
-    unit: s.unit, statement_type: s.statementType,
-    source_file_name: s.sourceFileName ?? null,
-  }))
+  const stmtRows = statements.map(s => {
+    const row: Record<string, unknown> = {
+      project_id: projectId,
+      fiscal_year: s.fiscalYear,
+      unit: s.unit,
+      statement_type: s.statementType,
+      source_file_name: s.sourceFileName ?? null,
+    }
+    const data = s as Record<string, unknown>
+    const keys = ['revenue','operatingProfit','ordinaryProfit','netIncome','totalAssets','totalLiabilities','netAssets','equityRatio','operatingCF','investingCF','financingCF','freeCF','roe','roa','operatingMargin']
+    const dbKeys = ['revenue','operating_profit','ordinary_profit','net_income','total_assets','total_liabilities','net_assets','equity_ratio','operating_cf','investing_cf','financing_cf','free_cf','roe','roa','operating_margin']
+    keys.forEach((k, i) => { row[dbKeys[i]] = data[k] ?? null })
+    return row
+  })
 
   const { error: stmtErr } = await supabase.from('financial_statements').insert(stmtRows)
   if (stmtErr) throw new Error(stmtErr.message)
@@ -64,11 +65,7 @@ export async function fetchProjects(): Promise<AnalysisProject[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('analysis_projects')
-    .select(`id, company_name, fiscal_year_start, fiscal_year_end, memo, created_at,
-      financial_statements (fiscal_year, revenue, operating_profit, ordinary_profit,
-      net_income, total_assets, total_liabilities, net_assets, equity_ratio,
-      operating_cf, investing_cf, financing_cf, free_cf, roe, roa,
-      operating_margin, unit, statement_type, source_file_name)`)
+    .select('id, company_name, fiscal_year_start, fiscal_year_end, memo, created_at, financial_statements (*)')
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
 
@@ -77,7 +74,7 @@ export async function fetchProjects(): Promise<AnalysisProject[]> {
     fiscalYearStart: p.fiscal_year_start, fiscalYearEnd: p.fiscal_year_end,
     memo: p.memo ?? '', createdAt: p.created_at,
     statements: (p.financial_statements ?? [])
-      .sort((a: { fiscal_year: number }, b: { fiscal_year: number }) => a.fiscal_year - b.fiscal_year)
+      .sort((a: Record<string,unknown>, b: Record<string,unknown>) => (a.fiscal_year as number) - (b.fiscal_year as number))
       .map((s: Record<string, unknown>) => ({
         fiscalYear: s.fiscal_year as number,
         revenue: s.revenue as number | null,
@@ -105,8 +102,7 @@ export async function fetchProjectWithComment(projectId: string) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('analysis_projects')
-    .select(`id, company_name, fiscal_year_start, fiscal_year_end, memo, created_at,
-      financial_statements (*), ai_comments (*)`)
+    .select('id, company_name, fiscal_year_start, fiscal_year_end, memo, created_at, financial_statements (*), ai_comments (*)')
     .eq('id', projectId).single()
   if (error) throw new Error(error.message)
   return data
@@ -126,4 +122,3 @@ export async function updateProjectMemo(projectId: string, memo: string) {
     .eq('id', projectId)
   if (error) throw new Error(error.message)
 }
-EOF

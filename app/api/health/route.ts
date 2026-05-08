@@ -1,4 +1,3 @@
-cat > app/api/health/route.ts << 'EOF'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -8,4 +7,3 @@ export async function GET() {
     anthropic: !!process.env.ANTHROPIC_API_KEY,
   })
 }
-EOF

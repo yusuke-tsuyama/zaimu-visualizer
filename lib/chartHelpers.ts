@@ -1,26 +1,40 @@
-cat > lib/chartHelpers.ts << 'EOF'
 import { FinancialStatement } from './types'
 
-export function toChartData(statements: FinancialStatement[]) {
+export function toChartData(statements: FinancialStatement[]): Record<string, string | number | null>[] {
   return statements
     .sort((a, b) => a.fiscalYear - b.fiscalYear)
-    .map(s => ({
-      year: `${s.fiscalYear}`,
-      売上高: s.revenue,
-      営業利益: s.operatingProfit,
-      経常利益: s.ordinaryProfit,
-      当期純利益: s.netIncome,
-      総資産: s.totalAssets,
-      純資産: s.netAssets,
-      自己資本比率: s.equityRatio,
-      営業CF: s.operatingCF,
-      投資CF: s.investingCF,
-      財務CF: s.financingCF,
-      フリーCF: s.freeCF,
-      ROE: s.roe,
-      ROA: s.roa,
-      営業利益率: s.operatingMargin,
-    }))
+    .map(s => {
+      const row: Record<string, string | number | null> = {
+        year: String(s.fiscalYear),
+      }
+      const keys = [
+        '売上高', '営業利益', '経常利益', '当期純利益', '総資産', '純資産',
+        '自己資本比率', '営業CF', '投資CF', '財務CF', 'フリーCF',
+        'ROE', 'ROA', '営業利益率',
+      ]
+      const fieldMap: Record<string, string> = {
+        '売上高': 'revenue',
+        '営業利益': 'operatingProfit',
+        '経常利益': 'ordinaryProfit',
+        '当期純利益': 'netIncome',
+        '総資産': 'totalAssets',
+        '純資産': 'netAssets',
+        '自己資本比率': 'equityRatio',
+        '営業CF': 'operatingCF',
+        '投資CF': 'investingCF',
+        '財務CF': 'financingCF',
+        'フリーCF': 'freeCF',
+        'ROE': 'roe',
+        'ROA': 'roa',
+        '営業利益率': 'operatingMargin',
+      }
+      keys.forEach(key => {
+        const field = fieldMap[key]
+        const val = (s as Record<string, unknown>)[field]
+        row[key] = (val === undefined || val === null) ? null : Number(val)
+      })
+      return row
+    })
 }
 
 export function calcDelta(
@@ -38,15 +52,14 @@ export function calcDelta(
 }
 
 export function formatValue(
-  value: number | null,
+  value: number | null | undefined,
   unit: string,
   isPercent = false
 ): string {
-  if (value === null) return '—'
-  if (isPercent) return `${value.toFixed(1)}%`
+  if (value === null || value === undefined) return '—'
+  if (isPercent) return value.toFixed(1) + '%'
   const abs = Math.abs(value)
-  if (abs >= 100000) return `${(value / 100000).toFixed(1)}兆円`
-  if (abs >= 10000) return `${(value / 10000).toFixed(0)}億円`
-  return `${value.toLocaleString()}${unit}`
+  if (abs >= 100000) return (value / 100000).toFixed(1) + '兆円'
+  if (abs >= 10000) return (value / 10000).toFixed(0) + '億円'
+  return value.toLocaleString() + unit
 }
-EOF

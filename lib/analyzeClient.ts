@@ -1,8 +1,10 @@
 import { ExtractedData, FinancialStatement, AiComment } from './types'
+import { AccountItem } from './accountItems'
 
 export async function extractAndAnalyzePdf(
   file: File,
   fiscalYear: number,
+  accountItems?: AccountItem[],
 ): Promise<ExtractedData> {
   const formData = new FormData()
   formData.append('file', file)
@@ -23,8 +25,8 @@ export async function extractAndAnalyzePdf(
     return {
       companyName: '',
       fiscalYear,
-      statements: emptyStatements(),
-      confidence: { revenue: 'low', operatingProfit: 'low', netIncome: 'low' },
+      statements: {},
+      confidence: {},
       warnings: ['PDFからテキストを抽出できませんでした。手動入力をお試しください。'],
       rawText: '',
     }
@@ -39,6 +41,7 @@ export async function extractAndAnalyzePdf(
       fiscalYear,
       unit: extracted.unit,
       statementType: extracted.statementType,
+      accountItems: accountItems?.map(item => ({ id: item.id, label: item.label })),
     }),
   })
 
@@ -53,30 +56,12 @@ export async function extractAndAnalyzePdf(
   return {
     companyName: data.companyName ?? '',
     fiscalYear: data.fiscalYear ?? fiscalYear,
-    statements: {
-      revenue: toNumber(data.statements?.revenue),
-      operatingProfit: toNumber(data.statements?.operatingProfit),
-      ordinaryProfit: toNumber(data.statements?.ordinaryProfit),
-      netIncome: toNumber(data.statements?.netIncome),
-      totalAssets: toNumber(data.statements?.totalAssets),
-      totalLiabilities: toNumber(data.statements?.totalLiabilities),
-      netAssets: toNumber(data.statements?.netAssets),
-      equityRatio: toNumber(data.statements?.equityRatio),
-      operatingCF: toNumber(data.statements?.operatingCF),
-      investingCF: toNumber(data.statements?.investingCF),
-      financingCF: toNumber(data.statements?.financingCF),
-      freeCF: toNumber(data.statements?.freeCF),
-      roe: toNumber(data.statements?.roe),
-      roa: toNumber(data.statements?.roa),
-      operatingMargin: toNumber(data.statements?.operatingMargin),
-    },
-    confidence: data.confidence ?? {
-      revenue: 'low',
-      operatingProfit: 'low',
-      netIncome: 'low',
-    },
+    statements: data.statements ?? {},
+    confidence: data.confidence ?? {},
     warnings: data.warnings ?? [],
     rawText: extracted.extractedText,
+    unit: data.unit ?? extracted.unit ?? '百万円',
+    statementType: data.statementType ?? extracted.statementType ?? '連結',
   }
 }
 
@@ -92,20 +77,4 @@ export async function generateAiComment(
   if (!res.ok) throw new Error('AIコメント生成に失敗しました')
   const json = await res.json()
   return json.data
-}
-
-function toNumber(v: unknown): number | null {
-  if (v === null || v === undefined) return null
-  const n = Number(v)
-  return isNaN(n) ? null : n
-}
-
-function emptyStatements() {
-  return {
-    revenue: null, operatingProfit: null, ordinaryProfit: null,
-    netIncome: null, totalAssets: null, totalLiabilities: null,
-    netAssets: null, equityRatio: null, operatingCF: null,
-    investingCF: null, financingCF: null, freeCF: null,
-    roe: null, roa: null, operatingMargin: null,
-  }
 }

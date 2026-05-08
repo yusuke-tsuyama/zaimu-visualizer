@@ -1,4 +1,3 @@
-cat > components/dashboard/AiCommentCard.tsx << 'EOF'
 import { AiComment } from '@/lib/types'
 
 interface Props {
@@ -7,12 +6,12 @@ interface Props {
 }
 
 const SECTIONS: { key: keyof AiComment; label: string; icon: string }[] = [
-  { key: 'growthComment',        label: '売上成長',        icon: '📈' },
-  { key: 'profitabilityComment', label: '収益性',          icon: '💹' },
-  { key: 'safetyComment',        label: '財務安全性',      icon: '🛡' },
-  { key: 'cashflowComment',      label: 'キャッシュ創出力', icon: '💧' },
-  { key: 'investmentComment',    label: '投資姿勢',        icon: '🏗' },
-  { key: 'riskComment',          label: '注目ポイント',    icon: '🔍' },
+  { key: 'growthComment', label: '売上成長', icon: '📈' },
+  { key: 'profitabilityComment', label: '収益性', icon: '💹' },
+  { key: 'safetyComment', label: '財務安全性', icon: '🛡' },
+  { key: 'cashflowComment', label: 'キャッシュ創出力', icon: '💧' },
+  { key: 'investmentComment', label: '投資姿勢', icon: '🏗' },
+  { key: 'riskComment', label: '注目ポイント', icon: '🔍' },
 ]
 
 export default function AiCommentCard({ comment, generating }: Props) {
@@ -24,7 +23,6 @@ export default function AiCommentCard({ comment, generating }: Props) {
       </div>
     )
   }
-
   return (
     <div className="space-y-3">
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
@@ -43,10 +41,8 @@ export default function AiCommentCard({ comment, generating }: Props) {
         ))}
       </div>
       <div className="text-xs text-gray-400 text-center pt-1">
-        ※ Claude AIによる学習補助コメントです。投資助言・売買推奨ではありません。
+        Claude AIによる学習補助コメントです。投資助言・売買推奨ではありません。
       </div>
     </div>
   )
 }
-EOF
-
