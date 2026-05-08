@@ -7,23 +7,21 @@ export const maxDuration = 120
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 const SYSTEM_PROMPT = `あなたは財務諸表の読解を専門とするアシスタントです。
-与えられた決算書テキストから財務数値を正確に抽出し、必ず指定のJSON形式のみで返してください。
+与えられた決算書から財務数値を正確に抽出し、必ず指定のJSON形式のみで返してください。
 JSON以外の文字は一切含めないでください。
 抽出ルール：
 - 連結財務諸表を優先し、なければ個別を使用する
-- 数値は単位変換せず、テキストに記載された数値をそのまま抽出する
+- 数値は単位変換せず、記載された数値をそのまま抽出する
 - 取得できない項目は必ず null にする。推測で埋めない
 - △や▲はマイナスを意味するため、負の値として返す
-- 自己資本比率・ROE・ROA・営業利益率はパーセント値で返す`
+- 自己資本比率・ROE・ROA・営業利益率はパーセント値で返す
+- フリーCFが明示されていない場合は営業CF+投資CFで計算してよい
+- 単位は百万円・千円・万円・円のいずれかを判定して返す`
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { extractedText, fileName, fiscalYear, unit, statementType, accountItems } = body
-
-    if (!extractedText || extractedText.trim().length < 100) {
-      console.warn("テキストが短いですが続行します")
-    }
+    const { extractedText, fileName, fiscalYear, unit, statementType, accountItems, base64Pdf } = body
 
     const hint = [
       fiscalYear ? `会計年度: ${fiscalYear}年` : '',
@@ -55,13 +53,7 @@ export async function POST(req: NextRequest) {
       .map((item: { id: string; label: string }) => `    "${item.id}": null`)
       .join(',\n')
 
-    const message = await client.messages.create({
-      model: 'claude-opus-4-5',
-      max_tokens: 2000,
-      system: SYSTEM_PROMPT,
-      messages: [{
-        role: 'user',
-        content: `以下は「${fileName}」から抽出した決算書テキストです。
+    const userPrompt = `ファイル名：${fileName}
 ヒント情報：${hint}
 
 以下のJSON形式で財務数値を抽出してください：
@@ -76,13 +68,46 @@ ${statementsTemplate}
   },
   "confidence": {},
   "warnings": []
-}
+}`
 
----
-決算書テキスト：
-${extractedText.slice(0, 40000)}`,
-      }],
-    })
+    let message
+
+    if (base64Pdf) {
+      // PDFを直接Claudeに渡して解析
+      message = await client.messages.create({
+        model: 'claude-opus-4-5',
+        max_tokens: 2000,
+        system: SYSTEM_PROMPT,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: base64Pdf,
+              },
+            } as {type: string; source: {type: string; media_type: string; data: string}},
+            {
+              type: 'text',
+              text: userPrompt,
+            },
+          ],
+        }],
+      })
+    } else {
+      // テキストベースの解析
+      message = await client.messages.create({
+        model: 'claude-opus-4-5',
+        max_tokens: 2000,
+        system: SYSTEM_PROMPT,
+        messages: [{
+          role: 'user',
+          content: userPrompt + '\n\n---\n決算書テキスト：\n' + (extractedText ?? '').slice(0, 40000),
+        }],
+      })
+    }
 
     const rawText = (message.content as Array<{type: string; text?: string}>)
       .filter(b => b.type === 'text')
@@ -91,7 +116,7 @@ ${extractedText.slice(0, 40000)}`,
 
     const jsonMatch = rawText.match(/\{[\s\S]+\}/)
     if (!jsonMatch) {
-      return NextResponse.json({ error: 'Claude APIからJSONを取得できませんでした', raw: rawText }, { status: 502 })
+      return NextResponse.json({ error: 'JSONを取得できませんでした', raw: rawText }, { status: 502 })
     }
 
     let parsed: Record<string, unknown>
