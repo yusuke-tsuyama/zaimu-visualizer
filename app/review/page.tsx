@@ -110,7 +110,7 @@ export default function ReviewPage() {
             type="text"
             value={globalCompanyName}
             onChange={e => setGlobalCompanyName(e.target.value)}
-            placeholder="例：トヨタ自動車株式会社"
+            placeholder="例：株式会社ABCDE"
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
           />
         </div>
