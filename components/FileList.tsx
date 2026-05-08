@@ -37,7 +37,7 @@ export default function FileList({ files, onYearChange, onRemove }: Props) {
                 placeholder="年度"
                 min={2000}
                 max={2035}
-                className="w-20 text-sm text-center border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-400"
+                className="w-20 text-sm text-center border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-400" inputMode="numeric" pattern="[0-9]*"
               />
               <span className="text-xs text-gray-400">年</span>
             </div>
