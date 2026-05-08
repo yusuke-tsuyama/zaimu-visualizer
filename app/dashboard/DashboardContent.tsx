@@ -188,8 +188,8 @@ export default function DashboardContent() {
           <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">直近期 KPI（{sorted[sorted.length-1]?.fiscalYear}年）</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
             {KPI_KEYS.map((kpi, i) => {
-              const val = latest[kpi.key] as number | null
-              const prevVal = previous ? previous[kpi.key] as number | null : null
+              const val = latest[kpi.key] !== undefined ? Number(latest[kpi.key]) : null
+              const prevVal = previous && previous[kpi.key] !== undefined ? Number(previous[kpi.key]) : null
               const delta = calcDelta(val, prevVal)
               return <KpiCard key={i} label={kpi.label} value={val} unit={unit} isPercent={kpi.isPercent} deltaValue={delta.value} deltaSign={delta.sign} highlight={kpi.highlight} />
             })}
@@ -248,10 +248,12 @@ export default function DashboardContent() {
                   <tr key={kpi.key} className={'border-b border-gray-50 ' + (i % 2 === 0 ? '' : 'bg-gray-50/50')}>
                     <td className="px-3 py-2 text-gray-600 sticky left-0 bg-inherit font-medium whitespace-nowrap">{kpi.label}</td>
                     {sorted.map(s => {
-                      const v = (s as Record<string,unknown>)[kpi.key] as number | null
+                      const raw = (s as Record<string,unknown>)[kpi.key]
+                      const v = raw !== undefined && raw !== null ? Number(raw) : null
+                      const isValid = v !== null && !isNaN(v)
                       return (
-                        <td key={s.fiscalYear} className={'px-3 py-2 text-right tabular-nums ' + (v === null ? 'text-gray-300' : v < 0 ? 'text-red-600' : 'text-gray-800')}>
-                          {v === null ? '—' : kpi.isPercent ? v.toFixed(1) + '%' : v.toLocaleString()}
+                        <td key={s.fiscalYear} className={'px-3 py-2 text-right tabular-nums ' + (!isValid ? 'text-gray-300' : v! < 0 ? 'text-red-600' : 'text-gray-800')}>
+                          {!isValid ? '—' : kpi.isPercent ? v!.toFixed(1) + '%' : v!.toLocaleString()}
                         </td>
                       )
                     })}
