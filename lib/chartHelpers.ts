@@ -58,8 +58,5 @@ export function formatValue(
 ): string {
   if (value === null || value === undefined) return '—'
   if (isPercent) return value.toFixed(1) + '%'
-  const abs = Math.abs(value)
-  if (abs >= 100000) return (value / 100000).toFixed(1) + '兆円'
-  if (abs >= 10000) return (value / 10000).toFixed(0) + '億円'
   return value.toLocaleString() + unit
 }

@@ -106,7 +106,7 @@ export default function HistoryPage() {
             if (v === null || v === undefined) return '—'
             const num = Number(v)
             if (isNaN(num)) return '—'
-            return Math.abs(num) >= 10000 ? (num / 10000).toFixed(0) + '億' + u : num.toLocaleString() + u
+            return num.toLocaleString() + u
           }
 
           return (
