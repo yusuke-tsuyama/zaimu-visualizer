@@ -1,5 +1,14 @@
-import { createClient } from './supabase'
+'use client'
+
+import { createBrowserClient } from '@supabase/ssr'
 import { FinancialStatement, AiComment, AnalysisProject } from './types'
+
+function getClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 
 export async function saveAnalysisProject({
   companyName, statements, aiComment, uploadedFiles, memo = '',
@@ -10,19 +19,26 @@ export async function saveAnalysisProject({
   uploadedFiles: { name: string; fiscalYear: number }[]
   memo?: string
 }): Promise<string> {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const supabase = getClient()
   const years = statements.map(s => s.fiscalYear).filter(Boolean)
   const fiscalYearStart = Math.min(...years)
   const fiscalYearEnd = Math.max(...years)
 
   const { data: project, error: projErr } = await supabase
     .from('analysis_projects')
-    .insert({ user_id: user?.id ?? null, company_name: companyName, fiscal_year_start: fiscalYearStart, fiscal_year_end: fiscalYearEnd, memo })
-    .select().single()
+    .insert({
+      company_name: companyName,
+      fiscal_year_start: fiscalYearStart,
+      fiscal_year_end: fiscalYearEnd,
+      memo,
+    })
+    .select()
+    .single()
+
   if (projErr) throw new Error(projErr.message)
 
   const projectId = project.id
+
   const stmtRows = statements.map(s => {
     const row: Record<string, unknown> = {
       project_id: projectId,
@@ -34,7 +50,10 @@ export async function saveAnalysisProject({
     const data = s as Record<string, unknown>
     const keys = ['revenue','operatingProfit','ordinaryProfit','netIncome','totalAssets','totalLiabilities','netAssets','equityRatio','operatingCF','investingCF','financingCF','freeCF','roe','roa','operatingMargin']
     const dbKeys = ['revenue','operating_profit','ordinary_profit','net_income','total_assets','total_liabilities','net_assets','equity_ratio','operating_cf','investing_cf','financing_cf','free_cf','roe','roa','operating_margin']
-    keys.forEach((k, i) => { row[dbKeys[i]] = data[k] ?? null })
+    keys.forEach((k, i) => {
+      const val = data[k]
+      row[dbKeys[i]] = (val !== undefined && val !== null) ? Number(val) : null
+    })
     return row
   })
 
@@ -43,7 +62,8 @@ export async function saveAnalysisProject({
 
   if (aiComment) {
     await supabase.from('ai_comments').insert({
-      project_id: projectId, summary: aiComment.summary,
+      project_id: projectId,
+      summary: aiComment.summary,
       growth_comment: aiComment.growthComment,
       profitability_comment: aiComment.profitabilityComment,
       safety_comment: aiComment.safetyComment,
@@ -55,24 +75,33 @@ export async function saveAnalysisProject({
 
   if (uploadedFiles.length > 0) {
     await supabase.from('uploaded_files').insert(
-      uploadedFiles.map(f => ({ project_id: projectId, file_name: f.name, fiscal_year: f.fiscalYear }))
+      uploadedFiles.map(f => ({
+        project_id: projectId,
+        file_name: f.name,
+        fiscal_year: f.fiscalYear,
+      }))
     )
   }
+
   return projectId
 }
 
 export async function fetchProjects(): Promise<AnalysisProject[]> {
-  const supabase = createClient()
+  const supabase = getClient()
   const { data, error } = await supabase
     .from('analysis_projects')
     .select('id, company_name, fiscal_year_start, fiscal_year_end, memo, created_at, financial_statements (*)')
     .order('created_at', { ascending: false })
+
   if (error) throw new Error(error.message)
 
   return (data ?? []).map(p => ({
-    id: p.id, companyName: p.company_name,
-    fiscalYearStart: p.fiscal_year_start, fiscalYearEnd: p.fiscal_year_end,
-    memo: p.memo ?? '', createdAt: p.created_at,
+    id: p.id,
+    companyName: p.company_name,
+    fiscalYearStart: p.fiscal_year_start,
+    fiscalYearEnd: p.fiscal_year_end,
+    memo: p.memo ?? '',
+    createdAt: p.created_at,
     statements: (p.financial_statements ?? [])
       .sort((a: Record<string,unknown>, b: Record<string,unknown>) => (a.fiscal_year as number) - (b.fiscal_year as number))
       .map((s: Record<string, unknown>) => ({
@@ -89,7 +118,8 @@ export async function fetchProjects(): Promise<AnalysisProject[]> {
         investingCF: s.investing_cf as number | null,
         financingCF: s.financing_cf as number | null,
         freeCF: s.free_cf as number | null,
-        roe: s.roe as number | null, roa: s.roa as number | null,
+        roe: s.roe as number | null,
+        roa: s.roa as number | null,
         operatingMargin: s.operating_margin as number | null,
         unit: (s.unit ?? '百万円') as FinancialStatement['unit'],
         statementType: (s.statement_type ?? '連結') as FinancialStatement['statementType'],
@@ -99,23 +129,27 @@ export async function fetchProjects(): Promise<AnalysisProject[]> {
 }
 
 export async function fetchProjectWithComment(projectId: string) {
-  const supabase = createClient()
+  const supabase = getClient()
   const { data, error } = await supabase
     .from('analysis_projects')
     .select('id, company_name, fiscal_year_start, fiscal_year_end, memo, created_at, financial_statements (*), ai_comments (*)')
-    .eq('id', projectId).single()
+    .eq('id', projectId)
+    .single()
   if (error) throw new Error(error.message)
   return data
 }
 
 export async function deleteProject(projectId: string) {
-  const supabase = createClient()
-  const { error } = await supabase.from('analysis_projects').delete().eq('id', projectId)
+  const supabase = getClient()
+  const { error } = await supabase
+    .from('analysis_projects')
+    .delete()
+    .eq('id', projectId)
   if (error) throw new Error(error.message)
 }
 
 export async function updateProjectMemo(projectId: string, memo: string) {
-  const supabase = createClient()
+  const supabase = getClient()
   const { error } = await supabase
     .from('analysis_projects')
     .update({ memo, updated_at: new Date().toISOString() })
