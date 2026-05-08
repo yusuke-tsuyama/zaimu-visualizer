@@ -21,22 +21,13 @@ export async function extractAndAnalyzePdf(
 
   const extracted = await extractRes.json()
 
-  if (!extracted.extractedText || extracted.extractedText.trim().length < 200) {
-    return {
-      companyName: '',
-      fiscalYear,
-      statements: {},
-      confidence: {},
-      warnings: ['PDFからテキストを抽出できませんでした。手動入力をお試しください。'],
-      rawText: '',
-    }
-  }
-
   const analyzeRes = await fetch('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      extractedText: extracted.extractedText,
+      extractedText: extracted.extractedText ?? '',
+      base64Pdf: extracted.base64Pdf,
+      usePdfVision: extracted.usePdfVision ?? false,
       fileName: file.name,
       fiscalYear,
       unit: extracted.unit,
@@ -59,7 +50,7 @@ export async function extractAndAnalyzePdf(
     statements: data.statements ?? {},
     confidence: data.confidence ?? {},
     warnings: data.warnings ?? [],
-    rawText: extracted.extractedText,
+    rawText: extracted.extractedText ?? '',
     unit: data.unit ?? extracted.unit ?? '百万円',
     statementType: data.statementType ?? extracted.statementType ?? '連結',
   }

@@ -22,7 +22,7 @@ const CONFIDENCE_CONFIG = {
 
 export default function ReviewTable({
   data, accountItems, unit, statementType,
-  onDataChange, onUnitChange, onStatementTypeChange, onCompanyNameChange,
+  onDataChange, onUnitChange, onStatementTypeChange,
 }: Props) {
 
   const handleValueChange = (key: string, value: string) => {
@@ -34,19 +34,11 @@ export default function ReviewTable({
 
   return (
     <div className="space-y-5">
+
+      {/* 基本情報（企業名なし・年度・種別・単位のみ） */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
         <h3 className="text-sm font-medium text-gray-700">基本情報</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">企業名</label>
-            <input
-              type="text"
-              value={data.companyName}
-              onChange={e => onCompanyNameChange(e.target.value)}
-              placeholder="例：トヨタ自動車株式会社"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-            />
-          </div>
+        <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="text-xs text-gray-500 block mb-1">会計年度</label>
             <input type="number" value={data.fiscalYear} readOnly className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600" />
@@ -109,12 +101,12 @@ export default function ReviewTable({
                             onChange={e => handleValueChange(field.id, e.target.value)}
                             placeholder="未取得"
                             step={isPercent ? '0.01' : '1'}
-                            className={`w-36 text-right border rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-blue-400 ${val === null ? 'border-gray-200 bg-gray-50 text-gray-400' : 'border-gray-300 text-gray-900'}`}
+                            className={'w-36 text-right border rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-blue-400 ' + (val === null ? 'border-gray-200 bg-gray-50 text-gray-400' : 'border-gray-300 text-gray-900')}
                           />
                           <span className="text-xs text-gray-400 w-10">{isPercent ? '%' : unit}</span>
                         </div>
                         {confConfig && (
-                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ml-1 ${confConfig.className}`}>{confConfig.label}</span>
+                          <span className={'text-xs px-1.5 py-0.5 rounded font-medium ml-1 ' + confConfig.className}>{confConfig.label}</span>
                         )}
                       </div>
                     )
