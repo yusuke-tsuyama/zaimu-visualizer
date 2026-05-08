@@ -45,7 +45,8 @@ export default function ReviewPage() {
       error: null,
     }))
     setEntries(initial)
-    const firstName = results[0]?.companyName
+    const uploadedName = sessionStorage.getItem('uploadedCompanyName')
+    const firstName = uploadedName || results[0]?.companyName
     if (firstName) setGlobalCompanyName(firstName)
   }, [router])
 
