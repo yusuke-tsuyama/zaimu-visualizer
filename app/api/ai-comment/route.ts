@@ -36,7 +36,7 @@ ROE: ${latest.roe ?? 'N/A'}%
 ROA: ${latest.roa ?? 'N/A'}%`
 
     const message = await client.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1200,
       system: COMMENT_SYSTEM,
       messages: [{
