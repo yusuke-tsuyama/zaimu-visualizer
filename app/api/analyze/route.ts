@@ -87,7 +87,7 @@ ${statementsTemplate}
         text: userPrompt,
       }
       message = await client.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: CLAUDE_MODEL,
         max_tokens: 2000,
         system: SYSTEM_PROMPT,
         messages: [{
@@ -97,7 +97,7 @@ ${statementsTemplate}
       })
     } else {
       message = await client.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: CLAUDE_MODEL,
         max_tokens: 2000,
         system: SYSTEM_PROMPT,
         messages: [{
