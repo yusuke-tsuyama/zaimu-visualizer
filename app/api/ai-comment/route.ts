@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { FinancialStatement } from '@/lib/types'
 import { CLAUDE_MODEL } from '@/lib/constants'
+import { getAdminClient } from '@/lib/supabaseAdmin'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -14,6 +15,39 @@ const COMMENT_SYSTEM = `あなたは財務分析の学習補助を行うアシ�
 必ず指定のJSON形式のみで返してください。`
 
 export async function POST(req: NextRequest) {
+  const ip = (req.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
+  const today = new Date().toISOString().slice(0, 10)
+  try {
+    const supabase = getAdminClient()
+    const { data: rateRecord } = await supabase
+      .from('rate_limits')
+      .select('count')
+      .eq('ip_address', ip)
+      .eq('date', today)
+      .maybeSingle()
+
+    if (rateRecord && rateRecord.count >= 30) {
+      return NextResponse.json(
+        { error: '本日の利用上限に達しました。明日また試してください。' },
+        { status: 429 }
+      )
+    }
+
+    if (rateRecord) {
+      await supabase
+        .from('rate_limits')
+        .update({ count: rateRecord.count + 1 })
+        .eq('ip_address', ip)
+        .eq('date', today)
+    } else {
+      await supabase
+        .from('rate_limits')
+        .insert({ ip_address: ip, date: today, count: 1 })
+    }
+  } catch {
+    // レート制限エラーは無視して処理を続行
+  }
+
   try {
     const { statements, companyName } = await req.json() as {
       statements: FinancialStatement[]
