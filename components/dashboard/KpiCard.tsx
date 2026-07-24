@@ -25,8 +25,8 @@ export default function KpiCard({ label, value, unit, isPercent = false, deltaVa
         <span className={'text-xl font-medium ' + (highlight ? 'text-white' : 'text-gray-900')}>{display}</span>
         {unitLabel && <span className={'text-xs ' + (highlight ? 'text-blue-200' : 'text-gray-400')}>{unitLabel}</span>}
       </div>
-      {deltaValue !== null && deltaValue !== undefined && (
-        <p className={'text-xs mt-1 ' + deltaColor}>{deltaPrefix} {Math.abs(deltaValue).toFixed(1)}%</p>
+      {num !== null && !isNaN(num) && deltaValue !== null && deltaValue !== undefined && deltaValue !== 0 && (
+        <p className={'text-xs mt-1 ' + deltaColor}>{deltaPrefix} {Math.abs(deltaValue).toFixed(1)}{isPercent ? 'pt' : '%'}</p>
       )}
     </div>
   )

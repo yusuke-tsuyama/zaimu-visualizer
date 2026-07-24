@@ -33,8 +33,19 @@ export function toChartData(statements: FinancialStatement[]): Record<string, st
 export function calcDelta(
   current: number | null | undefined,
   previous: number | null | undefined,
+  isRatio = false,
 ): { value: number | null; sign: 'up' | 'down' | 'flat' } {
-  if (current === null || current === undefined || previous === null || previous === undefined || previous === 0) {
+  if (current === null || current === undefined || previous === null || previous === undefined) {
+    return { value: null, sign: 'flat' }
+  }
+  if (isRatio) {
+    const diff = current - previous
+    return {
+      value: Math.round(diff * 10) / 10,
+      sign: diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat',
+    }
+  }
+  if (previous === 0) {
     return { value: null, sign: 'flat' }
   }
   const pct = ((current - previous) / Math.abs(previous)) * 100
@@ -42,6 +53,15 @@ export function calcDelta(
     value: Math.round(pct * 10) / 10,
     sign: pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat',
   }
+}
+
+export function formatAxisValue(v: unknown): string {
+  const n = Number(v)
+  if (isNaN(n)) return String(v)
+  if (Math.abs(n) >= 100000) {
+    return parseFloat((n / 100000).toFixed(2)).toString() + '\u5104'
+  }
+  return n.toLocaleString()
 }
 
 export function formatValue(

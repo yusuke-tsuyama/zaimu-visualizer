@@ -188,9 +188,13 @@ export default function DashboardContent() {
           <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">直近期 KPI（{sorted[sorted.length-1]?.fiscalYear}年）</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
             {KPI_KEYS.map((kpi, i) => {
-              const val = latest[kpi.key] !== undefined ? Number(latest[kpi.key]) : null
-              const prevVal = previous && previous[kpi.key] !== undefined ? Number(previous[kpi.key]) : null
-              const delta = calcDelta(val, prevVal)
+              const rawVal = (latest as Record<string,unknown>)[kpi.key]
+              const rawPrev = previous ? (previous as Record<string,unknown>)[kpi.key] : undefined
+              const valNum = rawVal !== undefined && rawVal !== null ? Number(rawVal) : null
+              const prevNum = rawPrev !== undefined && rawPrev !== null ? Number(rawPrev) : null
+              const val = valNum !== null && !isNaN(valNum) ? valNum : null
+              const prevVal = prevNum !== null && !isNaN(prevNum) ? prevNum : null
+              const delta = calcDelta(val, prevVal, kpi.isPercent)
               return <KpiCard key={i} label={kpi.label} value={val} unit={unit} isPercent={kpi.isPercent} deltaValue={delta.value} deltaSign={delta.sign} highlight={kpi.highlight} />
             })}
           </div>
