@@ -32,3 +32,16 @@ null チェックを省くと「0.0%」と誤表示される。
 undefined と null の両方をチェックすること。
 算出不能な場合の表示は「—」に統一する（KPIカード・一覧テーブル）。
 AIコメント側は 'N/A' を使用。
+
+## 環境変数（Supabase）の注意点
+- NEXT_PUBLIC_SUPABASE_URL は https://xxx.supabase.co で終わること。
+  末尾に /rest/v1/ を付けない（クライアントが自動付与し二重パスになる）。
+- キーは Legacy anon / service_role（eyJ... のJWT形式）を使う。
+  新方式（sb_publishable_...）はコード未対応。
+- VercelのSupabase系変数はSensitive指定のため vercel env pull では値が取れず
+  空文字が返る。値の確認・再取得はSupabaseダッシュボードから行う。
+
+## DB読み込みのキー変換
+DBはsnake_case、コードはcamelCase。DBから読んだ行は必ず
+lib/supabaseOperations.ts の normalizeStatement で変換すること。
+コンポーネント内で個別に変換しないこと（変換漏れで再表示が壊れる）。
