@@ -169,7 +169,8 @@ export default function MainScreen() {
           <p className="text-xs text-center text-gray-400">AI（Claude）が財務数値を抽出し、グラフを生成します</p>
           <AnalyzingOverlay step={analyzeStep} progress={progress} />
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800">
-            PDFの形式によっては正しく抽出できない場合があります。抽出後の確認・修正画面で必ず数値をご確認ください。
+            PDFの形式によっては正しく抽出できない場合があります。抽出後の確認・修正画面で必ず数値をご確認ください。<br />
+            ※ サーバー負荷軽減のため、1日に分析できるのは合計15期分までです。
           </div>
         </main>
       </div>

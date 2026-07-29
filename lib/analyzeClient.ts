@@ -1,6 +1,7 @@
 import { ExtractedData, FinancialStatement, AiComment } from './types'
 import { deriveRatios } from './chartHelpers'
 import { AccountItem } from './accountItems'
+import { getSessionId } from './session'
 
 export async function extractAndAnalyzePdf(
   file: File,
@@ -34,6 +35,7 @@ export async function extractAndAnalyzePdf(
       unit: extracted.unit,
       statementType: extracted.statementType,
       accountItems: accountItems?.map(item => ({ id: item.id, label: item.label })),
+      sessionId: getSessionId(),
     }),
   })
 

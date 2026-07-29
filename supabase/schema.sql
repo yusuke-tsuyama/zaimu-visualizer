@@ -104,3 +104,13 @@ create trigger trg_on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();
 EOF
+
+
+-- レート制限テーブル（IP または "sess:<sessionId>" を identifier として ip_address 列に格納）
+create table if not exists rate_limits (
+  id bigint generated always as identity primary key,
+  ip_address text not null,
+  date date not null,
+  count integer not null default 1,
+  unique (ip_address, date)
+);

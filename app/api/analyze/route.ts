@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import type { DocumentBlockParam, TextBlockParam } from '@anthropic-ai/sdk/resources/messages'
 import { CLAUDE_MODEL } from '@/lib/constants'
-import { getAdminClient } from '@/lib/supabaseAdmin'
+import { enforceRateLimit } from '@/lib/rateLimit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -22,41 +22,18 @@ JSON以外の文字は一切含めないでください。
 
 export async function POST(req: NextRequest) {
   const ip = (req.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
-  const today = new Date().toISOString().slice(0, 10)
-  try {
-    const supabase = getAdminClient()
-    const { data: rateRecord } = await supabase
-      .from('rate_limits')
-      .select('count')
-      .eq('ip_address', ip)
-      .eq('date', today)
-      .maybeSingle()
-
-    if (rateRecord && rateRecord.count >= 30) {
-      return NextResponse.json(
-        { error: '本日の利用上限に達しました。明日また試してください。' },
-        { status: 429 }
-      )
-    }
-
-    if (rateRecord) {
-      await supabase
-        .from('rate_limits')
-        .update({ count: rateRecord.count + 1 })
-        .eq('ip_address', ip)
-        .eq('date', today)
-    } else {
-      await supabase
-        .from('rate_limits')
-        .insert({ ip_address: ip, date: today, count: 1 })
-    }
-  } catch {
-    // レート制限エラーは無視して分析を続行
-  }
 
   try {
     const body = await req.json()
-    const { extractedText, fileName, fiscalYear, unit, statementType, accountItems, base64Pdf } = body
+    const { extractedText, fileName, fiscalYear, unit, statementType, accountItems, base64Pdf, sessionId } = body
+
+    const limit = await enforceRateLimit(ip, sessionId ?? null)
+    if (!limit.ok) {
+      const message = limit.reason === 'session'
+        ? '本日の利用上限（15期分）に達しました。明日また試してください。'
+        : 'アクセスが集中しています。時間をおいて再度お試しください。'
+      return NextResponse.json({ error: message }, { status: 429 })
+    }
 
     const hint = [
       fiscalYear ? `会計年度: ${fiscalYear}年` : '',
