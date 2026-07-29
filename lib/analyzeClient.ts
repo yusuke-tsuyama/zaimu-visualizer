@@ -1,4 +1,5 @@
 import { ExtractedData, FinancialStatement, AiComment } from './types'
+import { deriveRatios } from './chartHelpers'
 import { AccountItem } from './accountItems'
 
 export async function extractAndAnalyzePdf(
@@ -47,7 +48,7 @@ export async function extractAndAnalyzePdf(
   return {
     companyName: data.companyName ?? '',
     fiscalYear: data.fiscalYear ?? fiscalYear,
-    statements: data.statements ?? {},
+    statements: deriveRatios(data.statements ?? {}),
     confidence: data.confidence ?? {},
     warnings: data.warnings ?? [],
     rawText: extracted.extractedText ?? '',

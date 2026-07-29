@@ -75,3 +75,53 @@ export function formatValue(
   if (isPercent) return n.toFixed(1) + '%'
   return n.toLocaleString() + unit
 }
+
+
+// 比率指標を決定論的に算出する（AI抽出値は使わず、生データから常に再計算する）
+// 期末基準。算出不能な場合は null を返し、画面上は「—」表示になる。
+export function deriveRatios(
+  s: Record<string, number | null>,
+): Record<string, number | null> {
+  const num = (k: string): number | null => {
+    const v = s[k]
+    return typeof v === 'number' && !isNaN(v) ? v : null
+  }
+  const revenue = num('revenue')
+  const operatingProfit = num('operatingProfit')
+  const netIncome = num('netIncome')
+  const totalAssets = num('totalAssets')
+  const netAssets = num('netAssets')
+  const operatingCF = num('operatingCF')
+  const investingCF = num('investingCF')
+
+  const r1 = (x: number) => Math.round(x * 10) / 10
+
+  const equityRatio =
+    totalAssets !== null && totalAssets > 0 && netAssets !== null
+      ? r1((netAssets / totalAssets) * 100)
+      : null
+
+  // ROE: 純資産が総資産の1%未満（極小・ゼロ・マイナス）の期は算出しない
+  const roe =
+    netIncome !== null && netAssets !== null && totalAssets !== null &&
+    totalAssets > 0 && netAssets > totalAssets * 0.01
+      ? r1((netIncome / netAssets) * 100)
+      : null
+
+  const roa =
+    netIncome !== null && totalAssets !== null && totalAssets > 0
+      ? r1((netIncome / totalAssets) * 100)
+      : null
+
+  const operatingMargin =
+    operatingProfit !== null && revenue !== null && revenue > 0
+      ? r1((operatingProfit / revenue) * 100)
+      : null
+
+  const freeCF =
+    operatingCF !== null && investingCF !== null
+      ? operatingCF + investingCF
+      : null
+
+  return { ...s, equityRatio, roe, roa, operatingMargin, freeCF }
+}

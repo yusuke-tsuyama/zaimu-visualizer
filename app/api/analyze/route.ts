@@ -17,8 +17,7 @@ JSON以外の文字は一切含めないでください。
 - 数値は単位変換せず、記載された数値をそのまま抽出する
 - 取得できない項目は必ず null にする。推測で埋めない
 - △や▲はマイナスを意味するため、負の値として返す
-- 自己資本比率・ROE・ROA・営業利益率はパーセント値で返す
-- フリーCFが明示されていない場合は営業CF+投資CFで計算してよい
+- 決算書に実際に記載されている数値のみを抽出する。比率や指標を自分で計算しない
 - 単位は百万円・千円・万円・円のいずれかを判定して返す`
 
 export async function POST(req: NextRequest) {
@@ -75,14 +74,9 @@ export async function POST(req: NextRequest) {
           { id: 'totalAssets', label: '資産合計' },
           { id: 'totalLiabilities', label: '負債合計' },
           { id: 'netAssets', label: '純資産合計' },
-          { id: 'equityRatio', label: '自己資本比率' },
           { id: 'operatingCF', label: '営業活動によるキャッシュフロー' },
           { id: 'investingCF', label: '投資活動によるキャッシュフロー' },
           { id: 'financingCF', label: '財務活動によるキャッシュフロー' },
-          { id: 'freeCF', label: 'フリーキャッシュフロー' },
-          { id: 'roe', label: 'ROE' },
-          { id: 'roa', label: 'ROA' },
-          { id: 'operatingMargin', label: '営業利益率' },
         ]
 
     const statementsTemplate = itemsToExtract
