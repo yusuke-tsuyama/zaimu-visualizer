@@ -55,3 +55,15 @@ lib/supabaseOperations.ts の normalizeStatement で変換すること。
 - analyze でのみカウント。ai-comment はカウントしない（analyzeで締めるため）。
 - sessionId は analyzeClient.ts が getSessionId() で送信。認証ではなくlocalStorage
   ベースなので削除で回避可能。最終防衛はAnthropic APIのspend limit($200)。
+
+## レート制限
+lib/rateLimit.ts の enforceRateLimit に一本化。上限は RATE_LIMITS 定数
+（SESSION_PER_DAY=15, IP_PER_DAY=45）。1カウント=analyze 1回=1期分。
+rate_limits テーブルの ip_address 列に IP と "sess:<sessionId>" を格納して二層管理。
+sessionId は analyzeClient が getSessionId() で送信（localStorageベース、回避可能）。
+最終防衛は Anthropic API の spend limit($200)。
+
+## 未対応の課題
+- 利用規約改訂時の既存ユーザー再同意（同意フラグにバージョン管理が無い）
+- app/api/debug-save が本番に露出（削除または制限を検討）
+- rate_limits テーブルに (ip_address, date) の UNIQUE 制約を追加すると堅牢
