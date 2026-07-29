@@ -45,3 +45,13 @@ AIコメント側は 'N/A' を使用。
 DBはsnake_case、コードはcamelCase。DBから読んだ行は必ず
 lib/supabaseOperations.ts の normalizeStatement で変換すること。
 コンポーネント内で個別に変換しないこと（変換漏れで再表示が壊れる）。
+
+## レート制限の設計
+- lib/rateLimit.ts の enforceRateLimit に一本化。上限は RATE_LIMITS 定数で管理
+  （SESSION_PER_DAY=15, IP_PER_DAY=45）。数値変更はこの1箇所。
+- カウント単位は「analyze 1回=1期分」。5期の企業なら5カウント消費する。
+- rate_limits テーブルの ip_address 列に、IPと "sess:<sessionId>" の両方を格納
+  して二層管理する（スキーマ変更を避けるための設計）。
+- analyze でのみカウント。ai-comment はカウントしない（analyzeで締めるため）。
+- sessionId は analyzeClient.ts が getSessionId() で送信。認証ではなくlocalStorage
+  ベースなので削除で回避可能。最終防衛はAnthropic APIのspend limit($200)。
