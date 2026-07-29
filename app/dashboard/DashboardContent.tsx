@@ -67,25 +67,11 @@ export default function DashboardContent() {
 
   async function fetchFromSupabase(projectId: string) {
     try {
-      const { fetchProjectWithComment } = await import('@/lib/supabaseOperations')
+      const { fetchProjectWithComment, normalizeStatement } = await import('@/lib/supabaseOperations')
       const data = await fetchProjectWithComment(projectId)
       const stmts: FinancialStatement[] = (data.financial_statements ?? [])
         .sort((a: Record<string,unknown>, b: Record<string,unknown>) => (a.fiscal_year as number) - (b.fiscal_year as number))
-        .map((s: Record<string, unknown>) => {
-          const stmt: FinancialStatement = {
-            fiscalYear: s.fiscal_year as number,
-            unit: (s.unit ?? '万円') as FinancialStatement['unit'],
-            statementType: (s.statement_type ?? '連結') as FinancialStatement['statementType'],
-            sourceFileName: s.source_file_name as string | undefined,
-          }
-          // 全ての数値フィールドを動的に追加
-          Object.keys(s).forEach(key => {
-            if (!['id','project_id','fiscal_year','unit','statement_type','source_file_name','created_at'].includes(key)) {
-              (stmt as Record<string,unknown>)[key] = s[key]
-            }
-          })
-          return stmt
-        })
+        .map(normalizeStatement)
       setStatements(stmts)
       setCompanyName(data.company_name)
       setUnit((stmts[0] as Record<string,unknown>)?.unit as string ?? '万円')

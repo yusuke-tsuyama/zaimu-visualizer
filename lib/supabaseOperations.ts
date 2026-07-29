@@ -1,6 +1,34 @@
 import { getSessionId } from "@/lib/session";
 import { FinancialStatement, AiComment, AnalysisProject } from "./types";
 
+// DBの1行（snake_case）を FinancialStatement（camelCase）へ変換する。
+// DB読み込みの変換責任をここに一本化する。複数箇所で個別実装しないこと。
+export function normalizeStatement(s: Record<string, unknown>): FinancialStatement {
+  const n = (v: unknown): number | null =>
+    v === null || v === undefined ? null : Number(v);
+  return {
+    fiscalYear: s.fiscal_year as number,
+    revenue: n(s.revenue),
+    operatingProfit: n(s.operating_profit),
+    ordinaryProfit: n(s.ordinary_profit),
+    netIncome: n(s.net_income),
+    totalAssets: n(s.total_assets),
+    totalLiabilities: n(s.total_liabilities),
+    netAssets: n(s.net_assets),
+    equityRatio: n(s.equity_ratio),
+    operatingCF: n(s.operating_cf),
+    investingCF: n(s.investing_cf),
+    financingCF: n(s.financing_cf),
+    freeCF: n(s.free_cf),
+    roe: n(s.roe),
+    roa: n(s.roa),
+    operatingMargin: n(s.operating_margin),
+    unit: ((s.unit as string) ?? "百万円") as FinancialStatement["unit"],
+    statementType: ((s.statement_type as string) ?? "連結") as FinancialStatement["statementType"],
+    sourceFileName: s.source_file_name as string | undefined,
+  };
+}
+
 export async function saveAnalysisProject({
   companyName, statements, aiComment, uploadedFiles, memo = "",
 }: {
@@ -36,27 +64,7 @@ export async function fetchProjects(): Promise<AnalysisProject[]> {
     createdAt: p.created_at,
     statements: ((p.financial_statements as Record<string, unknown>[]) ?? [])
       .sort((a, b) => (a.fiscal_year as number) - (b.fiscal_year as number))
-      .map((s) => ({
-        fiscalYear: s.fiscal_year as number,
-        revenue: s.revenue as number | null,
-        operatingProfit: s.operating_profit as number | null,
-        ordinaryProfit: s.ordinary_profit as number | null,
-        netIncome: s.net_income as number | null,
-        totalAssets: s.total_assets as number | null,
-        totalLiabilities: s.total_liabilities as number | null,
-        netAssets: s.net_assets as number | null,
-        equityRatio: s.equity_ratio as number | null,
-        operatingCF: s.operating_cf as number | null,
-        investingCF: s.investing_cf as number | null,
-        financingCF: s.financing_cf as number | null,
-        freeCF: s.free_cf as number | null,
-        roe: s.roe as number | null,
-        roa: s.roa as number | null,
-        operatingMargin: s.operating_margin as number | null,
-        unit: ((s.unit as string) ?? "百万円") as FinancialStatement["unit"],
-        statementType: ((s.statement_type as string) ?? "連結") as FinancialStatement["statementType"],
-        sourceFileName: s.source_file_name as string | undefined,
-      })),
+      .map(normalizeStatement),
   }));
 }
 
