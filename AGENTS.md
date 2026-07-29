@@ -67,3 +67,14 @@ sessionId は analyzeClient が getSessionId() で送信（localStorageベース
 - 利用規約改訂時の既存ユーザー再同意（同意フラグにバージョン管理が無い）
 - app/api/debug-save が本番に露出（削除または制限を検討）
 - rate_limits テーブルに (ip_address, date) の UNIQUE 制約を追加すると堅牢
+
+## セキュリティ：アクセス制御の構造
+- DB操作は getAdminClient()（サービスロールキー）経由でRLSをバイパス。
+  schema.sql のRLSポリシー（auth.uid ベース）は認証がないため実質機能していない。
+- アクセス制御は各APIコード内の .eq("session_id", sessionId) フィルタのみが担う。
+  新規APIで analysis_projects 等に触るなら、必ず session_id で絞ること。
+  フィルタ漏れが即データ漏洩につながる。
+- 2026-07-29: 認証もフィルタもない debug-save エンドポイントを削除（GETで
+  誰でもDB書き込み可能な穴だった）。
+- 【要検討】コードフィルタ単独依存は脆い。将来 session_id ベースのRLS等で
+  DBレベルの多層防御を回復したい（認証なしRLSは設計難、別途検討）。
