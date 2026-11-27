@@ -78,3 +78,12 @@ sessionId は analyzeClient が getSessionId() で送信（localStorageベース
   誰でもDB書き込み可能な穴だった）。
 - 【要検討】コードフィルタ単独依存は脆い。将来 session_id ベースのRLS等で
   DBレベルの多層防御を回復したい（認証なしRLSは設計難、別途検討）。
+
+## 提供元表記・メンテナンスモード（2026-11-27）
+- 提供元表記を「合同会社リベルダード」から個人名義「YUSUKE TSUYAMA」に変更
+  （Vercel Hobby＝非商用・個人利用への移行方針）。表示箇所はスプラッシュ、ヘッダー、
+  履歴ページ、metadata、利用規約（TermsScreen）。
+- 環境変数 MAINTENANCE_MODE=1 で proxy.ts が全ページを /maintenance（503）に切り替え、
+  /api/* を503で止める。Supabase一時停止中のAPIエラーとClaude API無制限呼び出しを防ぐ。
+  解除は環境変数を外して再デプロイ。
+- 未対応: 利用規約の改訂に伴う既存ユーザーの再同意（同意フラグにバージョン管理が無い）。

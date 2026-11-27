@@ -65,7 +65,7 @@ export default function HistoryPage() {
           <Logo size={28} />
           <div>
             <h1 className="text-sm font-medium text-blue-100">過去の分析結果</h1>
-            <p className="text-xs text-blue-500">合同会社リベルダード</p>
+            <p className="text-xs text-blue-500">YUSUKE TSUYAMA</p>
           </div>
         </div>
         <button onClick={() => router.push('/')} className="text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 transition-colors">

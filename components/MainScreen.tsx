@@ -104,7 +104,7 @@ export default function MainScreen() {
             <Logo size={32} />
             <div>
               <h1 className="text-base font-medium text-blue-100">財務三表ビジュアライザー</h1>
-              <p className="text-xs text-blue-500">合同会社リベルダード</p>
+              <p className="text-xs text-blue-500">YUSUKE TSUYAMA</p>
             </div>
           </div>
           <div className="flex gap-2">

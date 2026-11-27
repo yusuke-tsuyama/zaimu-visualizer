@@ -28,7 +28,7 @@ export default function SplashScreen({ onDone }: Props) {
         </p>
       </div>
       <p className="text-xs text-blue-600 tracking-widest uppercase">
-        制作：合同会社リベルダード
+        制作：YUSUKE TSUYAMA
       </p>
       <div className="flex gap-2 mt-2">
         {[0, 1, 2].map(i => (
