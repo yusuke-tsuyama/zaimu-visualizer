@@ -13,14 +13,14 @@ const TERMS = [
   '最終的な判断は必ず原資料（有価証券報告書等）をご確認ください。',
   '著作権のある資料は、ユーザー自身が正当な権利を持つ範囲でご利用ください。',
   'サーバー負荷軽減のため、1日に分析できるのは合計15期分までです。',
-  '合同会社リベルダードは分析結果の正確性・完全性を保証しません。',
+  '運営者（YUSUKE TSUYAMA）は分析結果の正確性・完全性を保証しません。',
 ]
 
 const FULL_TERMS = [
   {
     heading: '第1条（サービスの目的）',
     body:
-      '本サービスは、ユーザーがアップロードした決算書等のPDFをもとに、財務諸表に含まれる数値を抽出・可視化し、財務分析の学習および研究を支援することを目的とします。\n本サービスは投資助言を目的とするものではなく、特定の企業や有価証券の価値、安全性、投資適格性等を保証・推奨・断定するものではありません。',
+      '本サービスは、ユーザーがアップロードした決算書等のPDFをもとに、財務諸表に含まれる数値を抽出・可視化し、財務分析の学習および研究を支援することを目的とします。\n本サービスは投資助言を目的とするものではなく、特定の企業や有価証券の価値、安全性、投資適格性等を保証・推奨・断定するものではありません。\n本サービスは、YUSUKE TSUYAMA（以下「運営者」）が個人として制作・運営する、非営利の学習用アプリです。',
   },
   {
     heading: '第2条（提供内容）',
@@ -54,7 +54,7 @@ const FULL_TERMS = [
   {
     heading: '第8条（お問い合わせ）',
     body:
-      '本規約に関するお問い合わせは下記までご連絡ください。\n合同会社リベルダード\nメール：info@liberdade.sakura.ne.jp',
+      '本規約に関するお問い合わせは下記までご連絡ください。\n運営者：YUSUKE TSUYAMA（個人）\nメール：tsuyama1208@gmail.com',
   },
 ]
 
@@ -92,7 +92,7 @@ export default function TermsScreen({ onAgree }: Props) {
           <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6 max-h-96 overflow-y-auto">
             <p className="text-sm font-medium text-gray-900 mb-1">利用規約</p>
             <p className="text-xs text-gray-500 mb-4">
-              財務三表ビジュアライザー / provided by 合同会社リベルダード
+              財務三表ビジュアライザー / provided by YUSUKE TSUYAMA
             </p>
             {FULL_TERMS.map((sec, i) => (
               <div key={i} className="mb-4 last:mb-0">
@@ -102,7 +102,7 @@ export default function TermsScreen({ onAgree }: Props) {
                 </p>
               </div>
             ))}
-            <p className="text-xs text-gray-400 mt-4">最終更新日：2026年7月29日</p>
+            <p className="text-xs text-gray-400 mt-4">最終更新日：2026年11月27日</p>
           </div>
         )}
 
